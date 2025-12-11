@@ -1,0 +1,5 @@
+{
+    "title": "caseResponse",
+    "description": "Case creation response containing success status, case ID, case number, and message",
+    "lightning:type": "@apexClassType/CaseCreatorAgent.CaseOutput"
+}

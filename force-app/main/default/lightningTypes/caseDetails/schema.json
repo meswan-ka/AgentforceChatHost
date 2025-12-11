@@ -1,0 +1,5 @@
+{
+    "title": "caseDetails",
+    "description": "Case creation input containing Subject, Status, and Priority",
+    "lightning:type": "@apexClassType/CaseCreatorAgent.CaseDetails"
+}

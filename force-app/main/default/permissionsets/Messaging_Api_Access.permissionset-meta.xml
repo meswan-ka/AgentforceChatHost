@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
+    <label>Messaging API Access</label>
+    <description>Grants access to MessagingApiService Apex class for Agentforce chat integration</description>
+    <hasActivationRequired>false</hasActivationRequired>
+    <classAccesses>
+        <apexClass>MessagingApiService</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+</PermissionSet>

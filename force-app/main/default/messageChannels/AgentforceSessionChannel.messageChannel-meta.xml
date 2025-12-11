@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LightningMessageChannel xmlns="http://soap.sforce.com/2006/04/metadata">
+    <masterLabel>Agentforce Session Channel</masterLabel>
+    <description>Broadcasts Messaging Session ID and activity events across Experience Cloud page components</description>
+    <isExposed>true</isExposed>
+    <lightningMessageFields>
+        <fieldName>sessionId</fieldName>
+        <description>The Messaging Session ID from Agentforce</description>
+    </lightningMessageFields>
+    <lightningMessageFields>
+        <fieldName>eventType</fieldName>
+        <description>Event type: SESSION_STARTED, SESSION_ENDED, LINK_CLICK, FORM_SUBMIT, MESSAGE_SENT, MESSAGE_RECEIVED</description>
+    </lightningMessageFields>
+    <lightningMessageFields>
+        <fieldName>timestamp</fieldName>
+        <description>Unix timestamp when the event occurred</description>
+    </lightningMessageFields>
+    <lightningMessageFields>
+        <fieldName>data</fieldName>
+        <description>JSON string containing event-specific payload</description>
+    </lightningMessageFields>
+</LightningMessageChannel>

@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Event_Type__c</fullName>
+    <description>Type of activity event being logged</description>
+    <externalId>false</externalId>
+    <label>Event Type</label>
+    <required>true</required>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>Session_Started</fullName>
+                <default>false</default>
+                <label>Session Started</label>
+            </value>
+            <value>
+                <fullName>Session_Ended</fullName>
+                <default>false</default>
+                <label>Session Ended</label>
+            </value>
+            <value>
+                <fullName>Link_Click</fullName>
+                <default>false</default>
+                <label>Link Click</label>
+            </value>
+            <value>
+                <fullName>Form_Submit</fullName>
+                <default>false</default>
+                <label>Form Submit</label>
+            </value>
+            <value>
+                <fullName>Message_Sent</fullName>
+                <default>false</default>
+                <label>Message Sent</label>
+            </value>
+            <value>
+                <fullName>Message_Received</fullName>
+                <default>false</default>
+                <label>Message Received</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>
