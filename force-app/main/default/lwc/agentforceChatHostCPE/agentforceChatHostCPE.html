@@ -278,6 +278,26 @@
                         class="field-spacing">
                     </lightning-input>
 
+                    <!-- Welcome Title Color -->
+                    <div class="color-field field-spacing">
+                        <label class="color-label">Title Color</label>
+                        <div class="color-picker-row">
+                            <input
+                                type="color"
+                                value={welcomeTitleColor}
+                                onchange={handleWelcomeTitleColorChange}
+                                class="color-swatch">
+                            <lightning-input
+                                type="text"
+                                value={welcomeTitleColor}
+                                onchange={handleWelcomeTitleColorChange}
+                                class="color-hex-input"
+                                variant="label-hidden">
+                            </lightning-input>
+                        </div>
+                        <p class="field-help">Color for the welcome title text (excluding callout word).</p>
+                    </div>
+
                     <!-- Welcome Message -->
                     <lightning-textarea
                         name="welcomeMessage"

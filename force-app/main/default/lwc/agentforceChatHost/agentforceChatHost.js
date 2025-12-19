@@ -40,6 +40,7 @@ export default class AgentforceChatHost extends LightningElement {
 
     // Welcome Title & Callout Configuration
     @api welcomeTitle = 'How can Agentforce help?';
+    @api welcomeTitleColor = '#032d60';
     @api calloutWord = 'Agentforce';
     @api calloutColor = '#0176d3';
     @api calloutBold = false; // Default false per LWC rules; CPE sends true as default
@@ -203,6 +204,10 @@ export default class AgentforceChatHost extends LightningElement {
         }
 
         return parts;
+    }
+
+    get welcomeTitleStyle() {
+        return `color: ${this.welcomeTitleColor};`;
     }
 
     get calloutStyle() {
@@ -408,6 +413,7 @@ export default class AgentforceChatHost extends LightningElement {
             if (config.gradientMidColor !== undefined) this.gradientMidColor = config.gradientMidColor;
             if (config.gradientEndColor !== undefined) this.gradientEndColor = config.gradientEndColor;
             if (config.welcomeTitle !== undefined) this.welcomeTitle = config.welcomeTitle;
+            if (config.welcomeTitleColor !== undefined) this.welcomeTitleColor = config.welcomeTitleColor;
             if (config.calloutWord !== undefined) this.calloutWord = config.calloutWord;
             if (config.calloutColor !== undefined) this.calloutColor = config.calloutColor;
             if (config.calloutBold !== undefined) this.calloutBold = config.calloutBold;

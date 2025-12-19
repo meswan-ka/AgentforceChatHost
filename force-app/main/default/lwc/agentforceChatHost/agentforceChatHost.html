@@ -14,7 +14,7 @@
                     <div class="agent-avatar" style={agentIconStyle}>
                         <lightning-icon icon-name="standard:bot" size="large"></lightning-icon>
                     </div>
-                    <h1 class="welcome-title">
+                    <h1 class="welcome-title" style={welcomeTitleStyle}>
                         <template for:each={titleParts} for:item="part">
                             <template lwc:if={part.isCallout}>
                                 <span key={part.text} class="callout" style={calloutStyle}>{part.text}</span>

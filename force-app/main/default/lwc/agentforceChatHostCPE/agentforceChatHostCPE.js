@@ -30,6 +30,7 @@ export default class AgentforceChatHostCPE extends LightningElement {
         gradientEndColor: '#ffffff',
         customizeGradient: false, // UI toggle state persisted in config
         welcomeTitle: 'How can Agentforce help?',
+        welcomeTitleColor: '#032d60',
         calloutWord: 'Agentforce',
         calloutColor: '#0176d3',
         calloutBold: true,
@@ -188,6 +189,7 @@ export default class AgentforceChatHostCPE extends LightningElement {
     get gradientStartColor() { return this._config.gradientStartColor; }
     get gradientEndColor() { return this._config.gradientEndColor; }
     get welcomeTitle() { return this._config.welcomeTitle; }
+    get welcomeTitleColor() { return this._config.welcomeTitleColor; }
     get calloutWord() { return this._config.calloutWord; }
     get calloutColor() { return this._config.calloutColor; }
     get calloutBold() { return this._config.calloutBold; }
@@ -381,6 +383,11 @@ export default class AgentforceChatHostCPE extends LightningElement {
 
     handleWelcomeTitleChange(event) {
         this.updateProperty('welcomeTitle', event.detail.value);
+    }
+
+    handleWelcomeTitleColorChange(event) {
+        const value = event.target.value || event.detail.value;
+        this.updateProperty('welcomeTitleColor', value);
     }
 
     handleWelcomeMessageChange(event) {
