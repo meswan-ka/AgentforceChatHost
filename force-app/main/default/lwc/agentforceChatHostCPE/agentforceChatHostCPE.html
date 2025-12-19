@@ -86,6 +86,118 @@
                         </div>
                     </div>
 
+                    <!-- Chat Colors Toggle -->
+                    <div class="toggle-field field-spacing">
+                        <lightning-input
+                            type="toggle"
+                            label="Customize Chat Colors"
+                            checked={customizeChatColors}
+                            onchange={handleCustomizeChatColorsToggle}
+                            message-toggle-active=""
+                            message-toggle-inactive="">
+                        </lightning-input>
+                        <p class="field-help">Style agent icons, message bubbles, and header to match your brand.</p>
+                    </div>
+
+                    <!-- Chat Colors (conditional) -->
+                    <template lwc:if={showChatColorControls}>
+                        <div class="nested-controls">
+                            <!-- Agent Primary Color -->
+                            <div class="color-field field-spacing">
+                                <label class="color-label">Agent Primary Color</label>
+                                <div class="color-picker-row">
+                                    <input
+                                        type="color"
+                                        value={agentPrimaryColor}
+                                        onchange={handleAgentPrimaryColorChange}
+                                        class="color-swatch">
+                                    <lightning-input
+                                        type="text"
+                                        value={agentPrimaryColor}
+                                        onchange={handleAgentPrimaryColorChange}
+                                        class="color-hex-input"
+                                        variant="label-hidden">
+                                    </lightning-input>
+                                </div>
+                                <p class="field-help">Used for agent icon, header title, and links.</p>
+                            </div>
+
+                            <!-- Agent Bubble Color -->
+                            <div class="color-field field-spacing">
+                                <label class="color-label">Agent Message Background</label>
+                                <div class="color-picker-row">
+                                    <input
+                                        type="color"
+                                        value={agentBubbleColor}
+                                        onchange={handleAgentBubbleColorChange}
+                                        class="color-swatch">
+                                    <lightning-input
+                                        type="text"
+                                        value={agentBubbleColor}
+                                        onchange={handleAgentBubbleColorChange}
+                                        class="color-hex-input"
+                                        variant="label-hidden">
+                                    </lightning-input>
+                                </div>
+                            </div>
+
+                            <!-- User Bubble Color -->
+                            <div class="color-field field-spacing">
+                                <label class="color-label">User Message Background</label>
+                                <div class="color-picker-row">
+                                    <input
+                                        type="color"
+                                        value={userBubbleColor}
+                                        onchange={handleUserBubbleColorChange}
+                                        class="color-swatch">
+                                    <lightning-input
+                                        type="text"
+                                        value={userBubbleColor}
+                                        onchange={handleUserBubbleColorChange}
+                                        class="color-hex-input"
+                                        variant="label-hidden">
+                                    </lightning-input>
+                                </div>
+                            </div>
+
+                            <!-- Auto Text Color Toggle -->
+                            <div class="toggle-field field-spacing">
+                                <lightning-input
+                                    type="toggle"
+                                    label="Auto Text Color"
+                                    checked={autoUserTextColor}
+                                    onchange={handleAutoUserTextColorToggle}
+                                    message-toggle-active=""
+                                    message-toggle-inactive="">
+                                </lightning-input>
+                                <p class="field-help">
+                                    Automatically set text color for contrast. Current: <strong>{calculatedUserTextColor}</strong>
+                                </p>
+                            </div>
+
+                            <!-- Manual Text Color (only if auto is off) -->
+                            <template lwc:if={showUserTextColorPicker}>
+                                <div class="color-field field-spacing">
+                                    <label class="color-label">User Message Text Color</label>
+                                    <div class="color-picker-row">
+                                        <input
+                                            type="color"
+                                            value={userTextColor}
+                                            onchange={handleUserTextColorChange}
+                                            class="color-swatch">
+                                        <lightning-input
+                                            type="text"
+                                            value={userTextColor}
+                                            onchange={handleUserTextColorChange}
+                                            class="color-hex-input"
+                                            variant="label-hidden">
+                                        </lightning-input>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+
                     <!-- Gradient Toggle -->
                     <div class="toggle-field field-spacing">
                         <lightning-input

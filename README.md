@@ -199,21 +199,149 @@ For engagement tracking on pages with the chat host:
 
 ---
 
+## Activity Tracker Deep Dive
+
+The `agentforceActivityTracker` component provides comprehensive engagement tracking with a **one-record-per-session** design for efficient storage and querying.
+
+### How It Works
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    Activity Tracking Flow                            │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  LMS Events → eventLog[] (in-memory) → Upsert Trigger → Apex/DB    │
+│                                                                      │
+│  ┌─────────────┐    ┌─────────────┐    ┌──────────────────────┐     │
+│  │ SESSION_    │    │ Events      │    │ Upsert when:         │     │
+│  │ STARTED     │───▶│ accumulate  │───▶│ • 5 events reached   │     │
+│  │ MESSAGE_*   │    │ in array    │    │ • 30 seconds elapsed │     │
+│  │ LINK_CLICK  │    │             │    │ • Session ends       │     │
+│  │ FORM_SUBMIT │    └─────────────┘    │ • Page closes        │     │
+│  │ SESSION_    │                       └──────────────────────┘     │
+│  │ ENDED       │                                                     │
+│  └─────────────┘                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### One-Record-Per-Session Design
+
+Unlike traditional event logging (one record per event), this implementation stores **all events for a session in a single record**:
+
+| Approach | Records per 50-event session | Query complexity |
+|----------|------------------------------|------------------|
+| Multi-record (old) | 50 records | Aggregate queries needed |
+| **Single-record (current)** | **1 record** | Simple SOQL |
+
+**Benefits:**
+- Reduced DML operations (upsert vs insert)
+- Lower storage footprint
+- Easier session-level analytics
+- Atomic session data
+
+### Upsert Triggers
+
+The tracker uses intelligent batching to balance real-time logging with API efficiency:
+
+| Trigger | Condition | Behavior |
+|---------|-----------|----------|
+| **Event Threshold** | 5 events accumulated | Immediate upsert |
+| **Time Threshold** | 30 seconds since last upsert | Scheduled upsert |
+| **Session End** | `SESSION_ENDED` event received | Final upsert |
+| **Page Close** | Browser tab closed/hidden | Visibility change handler |
+
+The `Messaging_Session_Id__c` field is configured as an **External ID** with **unique constraint**, enabling upsert behavior.
+
+### Event Storage Format
+
+All events are stored as a JSON array in `Event_Data__c`:
+
+```json
+[
+  {
+    "type": "Session_Started",
+    "timestamp": 1733320000000,
+    "source": "agentforceActivityTracker"
+  },
+  {
+    "type": "Message_Sent",
+    "timestamp": 1733320015000,
+    "source": "agentforceActivityTracker",
+    "data": { "messageLength": 45 }
+  },
+  {
+    "type": "Link_Click",
+    "timestamp": 1733320030000,
+    "source": "agentforceActivityTracker",
+    "data": { "url": "https://help.example.com/article" }
+  },
+  {
+    "type": "Session_Ended",
+    "timestamp": 1733320120000,
+    "source": "agentforceActivityTracker"
+  }
+]
+```
+
+### Event Types
+
+| LMS Event | Stored As | When Tracked |
+|-----------|-----------|--------------|
+| `SESSION_STARTED` | `Session_Started` | Session lifecycle ON |
+| `SESSION_ENDED` | `Session_Ended` | Session lifecycle ON |
+| `MESSAGE_SENT` | `Message_Sent` | Track messages ON |
+| `MESSAGE_RECEIVED` | `Message_Received` | Track messages ON |
+| `LINK_CLICK` | `Link_Click` | Track link clicks ON |
+| `FORM_SUBMIT` | `Form_Submit` | Track form submissions ON |
+| (Upsert event) | `Session_Updated` | Automatic (internal) |
+
+### Browser Close Handling
+
+The tracker handles browser close scenarios using two mechanisms:
+
+1. **`disconnectedCallback()`** - Fires when component is destroyed
+2. **`visibilitychange` event** - Fires when tab is hidden/closed
+
+```javascript
+// Visibility handler ensures data is saved even on sudden browser close
+handleVisibilityChange() {
+    if (document.visibilityState === 'hidden' && this.isSessionActive) {
+        this.upsertSessionRecord(false);
+    }
+}
+```
+
+---
+
 ## Custom Object: Agentforce_Activity__c
 
-Activity events are logged to this custom object:
+Activity events are logged to this custom object (one record per session):
 
 | Field | API Name | Type | Description |
 |-------|----------|------|-------------|
-| Messaging Session ID | `Messaging_Session_Id__c` | Text | Unique session identifier |
-| Event Type | `Event_Type__c` | Picklist | Type of activity event |
-| Event Timestamp | `Event_Timestamp__c` | DateTime | When the event occurred |
-| Event Source | `Event_Source__c` | Text | Component that triggered the event |
-| Event Data | `Event_Data__c` | Long Text | JSON payload with event details |
-| Message Count | `Message_Count__c` | Number | Running count of messages |
-| Time in Chat | `Time_In_Chat__c` | Number | Seconds since session start |
+| Messaging Session ID | `Messaging_Session_Id__c` | Text (255) | **External ID, Unique** - Session identifier for upsert |
+| Event Type | `Event_Type__c` | Picklist | Final event state (`Session_Ended` or `Session_Updated`) |
+| Event Timestamp | `Event_Timestamp__c` | DateTime | Session start time |
+| Event Source | `Event_Source__c` | Text | Component that tracked the session |
+| Event Data | `Event_Data__c` | Long Text | JSON array of all session events |
+| Event Count | `Event_Count__c` | Number | Total events in session |
+| Message Count | `Message_Count__c` | Number | Total messages sent + received |
+| Time in Chat | `Time_In_Chat__c` | Number | Total seconds from start to end |
+| Session End Time | `Session_End_Time__c` | DateTime | When session ended (null if active) |
 | User | `User__c` | Lookup(User) | Logged-in user (if authenticated) |
 | Contact | `Contact__c` | Lookup(Contact) | Related contact |
+
+### Event Type Picklist Values
+
+| API Name | Label | Description |
+|----------|-------|-------------|
+| `Session_Started` | Session Started | Chat session initiated |
+| `Session_Ended` | Session Ended | Chat session closed |
+| `Session_Updated` | Session Updated | Intermediate upsert (session still active) |
+| `Message_Sent` | Message Sent | User sent a message |
+| `Message_Received` | Message Received | Agent responded |
+| `Link_Click` | Link Click | User clicked a link |
+| `Form_Submit` | Form Submit | User submitted a form |
 
 ---
 
@@ -313,10 +441,14 @@ MessagingApiService.TokenRequestConfig config =
 Manages activity logging and retrieval:
 
 ```apex
-// Log a single activity
+// Upsert session activity (one-record-per-session pattern) - RECOMMENDED
+Id recordId = AgentforceActivityService.upsertSessionActivity(activityWrapper);
+// Uses Messaging_Session_Id__c as external ID for upsert
+
+// Log a single activity (creates new record each time)
 Id recordId = AgentforceActivityService.logActivity(activityWrapper);
 
-// Log multiple activities (batch)
+// Log multiple activities (batch insert)
 List<Id> recordIds = AgentforceActivityService.logActivities(activityWrappers);
 
 // Get all activities for a session
@@ -327,6 +459,25 @@ List<AgentforceActivityWrapper> activities =
 Map<String, Object> summary =
     AgentforceActivityService.getSessionSummary('session-123');
 // Returns: { totalEvents, messageCount, timeInChat, eventBreakdown }
+```
+
+### AgentforceActivityWrapper
+
+Data transfer object for activity records:
+
+```apex
+AgentforceActivityWrapper wrapper = new AgentforceActivityWrapper();
+wrapper.sessionId = 'session-123';           // Required - used as external ID
+wrapper.eventType = 'Session_Ended';         // Required - picklist value
+wrapper.timestamp = Datetime.now().getTime(); // Session start time (Unix ms)
+wrapper.eventSource = 'agentforceActivityTracker';
+wrapper.eventData = '[{...}]';               // JSON array of events
+wrapper.eventCount = 4;                      // Total events in session
+wrapper.messageCount = 10;                   // Total messages
+wrapper.timeInChat = 300;                    // Seconds in chat
+wrapper.sessionEndTime = Datetime.now().getTime(); // End time (Unix ms)
+wrapper.userId = UserInfo.getUserId();
+wrapper.contactId = null;
 ```
 
 ---
@@ -395,13 +546,15 @@ force-app/main/default/
     └── Agentforce_Activity__c/
         ├── Agentforce_Activity__c.object-meta.xml
         └── fields/
-            ├── Messaging_Session_Id__c.field-meta.xml
+            ├── Messaging_Session_Id__c.field-meta.xml  # External ID, Unique
             ├── Event_Type__c.field-meta.xml
             ├── Event_Timestamp__c.field-meta.xml
             ├── Event_Source__c.field-meta.xml
-            ├── Event_Data__c.field-meta.xml
+            ├── Event_Data__c.field-meta.xml            # JSON array of events
+            ├── Event_Count__c.field-meta.xml           # Total events in session
             ├── Message_Count__c.field-meta.xml
             ├── Time_In_Chat__c.field-meta.xml
+            ├── Session_End_Time__c.field-meta.xml      # When session ended
             ├── User__c.field-meta.xml
             └── Contact__c.field-meta.xml
 ```
@@ -412,6 +565,7 @@ force-app/main/default/
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 27.0 | 2025-12 | Activity tracker redesign: one-record-per-session with upsert, JSON event storage, hybrid timing (5 events OR 30s) |
 | 26.W | 2025-12 | Search integration, gradient customization, callout word styling |
 
 ---

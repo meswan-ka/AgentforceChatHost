@@ -40,6 +40,11 @@
                 <default>false</default>
                 <label>Message Received</label>
             </value>
+            <value>
+                <fullName>Session_Updated</fullName>
+                <default>false</default>
+                <label>Session Updated</label>
+            </value>
         </valueSetDefinition>
     </valueSet>
 </CustomField>

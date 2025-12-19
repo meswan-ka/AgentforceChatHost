@@ -52,6 +52,13 @@ export default class AgentforceChatHost extends LightningElement {
     @api sendButtonColor = '#0176d3';
     @api deploymentDeveloperName = '';
 
+    // Chat Message Styling
+    @api agentPrimaryColor = '#0176d3';
+    @api agentBubbleColor = '#f3f3f3';
+    @api userBubbleColor = '#e8f4fd';
+    @api userTextColor = '#032d60';
+    @api autoUserTextColor = false; // Default false per LWC rules; CPE sends true as default
+
     // Search Integration Configuration
     @api enableSearchIntegration = false;
     @api searchUrlParameter = 'term';
@@ -115,7 +122,11 @@ export default class AgentforceChatHost extends LightningElement {
 
     get wrapperStyle() {
         if (this.displayMode === 'Inline') {
-            return `height: ${this.inlineHeight}px; width: ${this.inlineWidthPercent}%;`;
+            let style = `height: ${this.inlineHeight}px; width: ${this.inlineWidthPercent}%;`;
+            if (this.inlineWidthPercent < 100) {
+                style += ' margin: 0 auto;';
+            }
+            return style;
         }
         return '';
     }
@@ -213,6 +224,87 @@ export default class AgentforceChatHost extends LightningElement {
             return '';
         }
         return `background-color: ${this.sendButtonColor};`;
+    }
+
+    get agentIconStyle() {
+        // Derive a darker shade for the gradient end
+        return `background: linear-gradient(135deg, ${this.agentPrimaryColor} 0%, ${this._darkenColor(this.agentPrimaryColor, 40)} 100%);`;
+    }
+
+    get headerTitleStyle() {
+        return `color: ${this.agentPrimaryColor};`;
+    }
+
+    get agentBubbleStyle() {
+        return `background-color: ${this.agentBubbleColor};`;
+    }
+
+    get userBubbleStyle() {
+        const textColor = this._getEffectiveUserTextColor();
+        return `background-color: ${this.userBubbleColor}; color: ${textColor};`;
+    }
+
+    /**
+     * Get the effective user text color - auto-calculated or manual
+     */
+    _getEffectiveUserTextColor() {
+        if (this.autoUserTextColor) {
+            return this._getContrastColor(this.userBubbleColor);
+        }
+        return this.userTextColor;
+    }
+
+    /**
+     * Calculate optimal contrast color (dark or light) for a given background
+     * Uses WCAG relative luminance formula
+     */
+    _getContrastColor(hexColor) {
+        const luminance = this._getLuminance(hexColor);
+        // Use dark text for light backgrounds, light text for dark backgrounds
+        // Threshold of 0.5 provides good contrast in most cases
+        return luminance > 0.5 ? '#1a1a1a' : '#ffffff';
+    }
+
+    /**
+     * Calculate relative luminance of a hex color (WCAG 2.1 formula)
+     */
+    _getLuminance(hex) {
+        // Remove # if present
+        hex = hex.replace('#', '');
+
+        // Parse RGB values
+        let r = parseInt(hex.substring(0, 2), 16) / 255;
+        let g = parseInt(hex.substring(2, 4), 16) / 255;
+        let b = parseInt(hex.substring(4, 6), 16) / 255;
+
+        // Apply gamma correction
+        r = r <= 0.03928 ? r / 12.92 : Math.pow((r + 0.055) / 1.055, 2.4);
+        g = g <= 0.03928 ? g / 12.92 : Math.pow((g + 0.055) / 1.055, 2.4);
+        b = b <= 0.03928 ? b / 12.92 : Math.pow((b + 0.055) / 1.055, 2.4);
+
+        // Calculate relative luminance
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    }
+
+    /**
+     * Helper to darken a hex color by a percentage
+     */
+    _darkenColor(hex, percent) {
+        // Remove # if present
+        hex = hex.replace('#', '');
+
+        // Parse RGB values
+        let r = parseInt(hex.substring(0, 2), 16);
+        let g = parseInt(hex.substring(2, 4), 16);
+        let b = parseInt(hex.substring(4, 6), 16);
+
+        // Darken by percentage
+        r = Math.max(0, Math.floor(r * (1 - percent / 100)));
+        g = Math.max(0, Math.floor(g * (1 - percent / 100)));
+        b = Math.max(0, Math.floor(b * (1 - percent / 100)));
+
+        // Convert back to hex
+        return '#' + [r, g, b].map(x => x.toString(16).padStart(2, '0')).join('');
     }
 
     get showWelcomeScreen() {
@@ -323,6 +415,11 @@ export default class AgentforceChatHost extends LightningElement {
             if (config.welcomeMessage !== undefined) this.welcomeMessage = config.welcomeMessage;
             if (config.chatHeaderTitle !== undefined) this.chatHeaderTitle = config.chatHeaderTitle;
             if (config.sendButtonColor !== undefined) this.sendButtonColor = config.sendButtonColor;
+            if (config.agentPrimaryColor !== undefined) this.agentPrimaryColor = config.agentPrimaryColor;
+            if (config.agentBubbleColor !== undefined) this.agentBubbleColor = config.agentBubbleColor;
+            if (config.userBubbleColor !== undefined) this.userBubbleColor = config.userBubbleColor;
+            if (config.userTextColor !== undefined) this.userTextColor = config.userTextColor;
+            if (config.autoUserTextColor !== undefined) this.autoUserTextColor = config.autoUserTextColor;
             if (config.enableSearchIntegration !== undefined) this.enableSearchIntegration = config.enableSearchIntegration;
             if (config.searchUrlParameter !== undefined) this.searchUrlParameter = config.searchUrlParameter;
             if (config.autoStartOnSearch !== undefined) this.autoStartOnSearch = config.autoStartOnSearch;
@@ -908,6 +1005,13 @@ export default class AgentforceChatHost extends LightningElement {
 
     addMessage(text, sender, isHtml = false) {
         this._messageIdCounter++;
+        let bubbleStyle;
+        if (sender === 'agent') {
+            bubbleStyle = `background-color: ${this.agentBubbleColor};`;
+        } else {
+            const textColor = this._getEffectiveUserTextColor();
+            bubbleStyle = `background-color: ${this.userBubbleColor}; color: ${textColor};`;
+        }
         const message = {
             id: `msg-${this._messageIdCounter}`,
             text: text,
@@ -916,9 +1020,10 @@ export default class AgentforceChatHost extends LightningElement {
             isUser: sender === 'user',
             isHtml: isHtml,
             time: this._formatTime(new Date()),
-            senderName: sender === 'agent' ? 'Agentforce' : 'You',
+            senderName: sender === 'agent' ? this.chatHeaderTitle : 'You',
             containerClass: `message-row ${sender}`,
-            bubbleClass: `message-bubble ${sender}`
+            bubbleClass: `message-bubble ${sender}`,
+            bubbleStyle: bubbleStyle
         };
 
         this.messages = [...this.messages, message];

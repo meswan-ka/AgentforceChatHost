@@ -13,6 +13,8 @@ public with sharing class AgentforceActivityWrapper {
     @AuraEnabled public Integer timeInChat { get; set; }
     @AuraEnabled public Id userId { get; set; }
     @AuraEnabled public Id contactId { get; set; }
+    @AuraEnabled public Long sessionEndTime { get; set; }
+    @AuraEnabled public Integer eventCount { get; set; }
 
     /**
      * @description Default constructor
@@ -60,7 +62,11 @@ public with sharing class AgentforceActivityWrapper {
             Message_Count__c = this.messageCount,
             Time_In_Chat__c = this.timeInChat,
             User__c = this.userId,
-            Contact__c = this.contactId
+            Contact__c = this.contactId,
+            Session_End_Time__c = this.sessionEndTime != null
+                ? Datetime.newInstance(this.sessionEndTime)
+                : null,
+            Event_Count__c = this.eventCount
         );
     }
 
@@ -86,6 +92,12 @@ public with sharing class AgentforceActivityWrapper {
             : null;
         wrapper.userId = record.User__c;
         wrapper.contactId = record.Contact__c;
+        wrapper.sessionEndTime = record.Session_End_Time__c != null
+            ? record.Session_End_Time__c.getTime()
+            : null;
+        wrapper.eventCount = record.Event_Count__c != null
+            ? Integer.valueOf(record.Event_Count__c)
+            : null;
         return wrapper;
     }
 }

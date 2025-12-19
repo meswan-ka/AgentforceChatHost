@@ -39,6 +39,13 @@ export default class AgentforceChatHostCPE extends LightningElement {
         welcomeMessage: 'Ask questions, get personalized answers, and take action with Agentforce.',
         chatHeaderTitle: 'Agentforce',
         sendButtonColor: '#0176d3',
+        // Chat message styling
+        agentPrimaryColor: '#0176d3',
+        agentBubbleColor: '#f3f3f3',
+        userBubbleColor: '#e8f4fd',
+        userTextColor: '#032d60',
+        autoUserTextColor: true,
+        customizeChatColors: false, // UI toggle state persisted in config
         enableSearchIntegration: false,
         searchUrlParameter: 'term',
         autoStartOnSearch: false
@@ -192,6 +199,46 @@ export default class AgentforceChatHostCPE extends LightningElement {
     get enableSearchIntegration() { return this._config.enableSearchIntegration; }
     get searchUrlParameter() { return this._config.searchUrlParameter; }
     get autoStartOnSearch() { return this._config.autoStartOnSearch; }
+    get agentPrimaryColor() { return this._config.agentPrimaryColor; }
+    get agentBubbleColor() { return this._config.agentBubbleColor; }
+    get userBubbleColor() { return this._config.userBubbleColor; }
+    get userTextColor() { return this._config.userTextColor; }
+    get autoUserTextColor() { return this._config.autoUserTextColor; }
+    get customizeChatColors() { return this._config.customizeChatColors; }
+    get showChatColorControls() { return this._config.customizeChatColors; }
+    get showUserTextColorPicker() { return this._config.customizeChatColors && !this._config.autoUserTextColor; }
+
+    /**
+     * Calculate the auto-generated text color for preview
+     */
+    get calculatedUserTextColor() {
+        if (!this._config.autoUserTextColor) {
+            return this._config.userTextColor;
+        }
+        return this._getContrastColor(this._config.userBubbleColor);
+    }
+
+    /**
+     * Calculate optimal contrast color (dark or light) for a given background
+     */
+    _getContrastColor(hexColor) {
+        const luminance = this._getLuminance(hexColor);
+        return luminance > 0.5 ? '#1a1a1a' : '#ffffff';
+    }
+
+    /**
+     * Calculate relative luminance of a hex color (WCAG 2.1 formula)
+     */
+    _getLuminance(hex) {
+        hex = hex.replace('#', '');
+        let r = parseInt(hex.substring(0, 2), 16) / 255;
+        let g = parseInt(hex.substring(2, 4), 16) / 255;
+        let b = parseInt(hex.substring(4, 6), 16) / 255;
+        r = r <= 0.03928 ? r / 12.92 : Math.pow((r + 0.055) / 1.055, 2.4);
+        g = g <= 0.03928 ? g / 12.92 : Math.pow((g + 0.055) / 1.055, 2.4);
+        b = b <= 0.03928 ? b / 12.92 : Math.pow((b + 0.055) / 1.055, 2.4);
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    }
 
     // ==================== CORE METHODS ====================
 
@@ -285,6 +332,49 @@ export default class AgentforceChatHostCPE extends LightningElement {
     handleSendButtonColorChange(event) {
         const value = event.target.value || event.detail.value;
         this.updateProperty('sendButtonColor', value);
+    }
+
+    handleCustomizeChatColorsToggle(event) {
+        const checked = event.target.checked;
+        // Persist toggle state and reset colors if turning off
+        if (!checked) {
+            this._config = {
+                ...this._config,
+                customizeChatColors: false,
+                agentPrimaryColor: '#0176d3',
+                agentBubbleColor: '#f3f3f3',
+                userBubbleColor: '#e8f4fd',
+                userTextColor: '#032d60',
+                autoUserTextColor: true
+            };
+        } else {
+            this._config = { ...this._config, customizeChatColors: true };
+        }
+        this.dispatchValueChange();
+    }
+
+    handleAgentPrimaryColorChange(event) {
+        const value = event.target.value || event.detail.value;
+        this.updateProperty('agentPrimaryColor', value);
+    }
+
+    handleAgentBubbleColorChange(event) {
+        const value = event.target.value || event.detail.value;
+        this.updateProperty('agentBubbleColor', value);
+    }
+
+    handleUserBubbleColorChange(event) {
+        const value = event.target.value || event.detail.value;
+        this.updateProperty('userBubbleColor', value);
+    }
+
+    handleAutoUserTextColorToggle(event) {
+        this.updateProperty('autoUserTextColor', event.target.checked);
+    }
+
+    handleUserTextColorChange(event) {
+        const value = event.target.value || event.detail.value;
+        this.updateProperty('userTextColor', value);
     }
 
     // ==================== WELCOME SECTION HANDLERS ====================

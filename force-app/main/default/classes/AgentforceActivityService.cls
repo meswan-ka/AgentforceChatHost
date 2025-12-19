@@ -60,6 +60,41 @@ public with sharing class AgentforceActivityService {
     }
 
     /**
+     * @description Upsert a session activity record (one record per session)
+     * Uses Messaging_Session_Id__c as external ID for upsert
+     * @param activity The activity wrapper containing session data
+     * @return The upserted activity record Id
+     */
+    @AuraEnabled
+    public static Id upsertSessionActivity(AgentforceActivityWrapper activity) {
+        if (activity == null || String.isBlank(activity.sessionId)) {
+            throw new AuraHandledException('Activity and sessionId are required');
+        }
+
+        Agentforce_Activity__c record = activity.toSObject();
+
+        try {
+            Database.UpsertResult result = Database.upsert(
+                record,
+                Agentforce_Activity__c.Messaging_Session_Id__c,
+                false
+            );
+
+            if (!result.isSuccess()) {
+                String errorMsg = '';
+                for (Database.Error err : result.getErrors()) {
+                    errorMsg += err.getMessage() + ' ';
+                }
+                throw new AuraHandledException('Failed to upsert session activity: ' + errorMsg);
+            }
+
+            return result.getId();
+        } catch (DmlException e) {
+            throw new AuraHandledException('Failed to upsert session activity: ' + e.getMessage());
+        }
+    }
+
+    /**
      * @description Get all activities for a specific messaging session
      * @param sessionId The Messaging Session Id
      * @return List of activity wrappers ordered by timestamp
@@ -81,7 +116,9 @@ public with sharing class AgentforceActivityService {
                 Message_Count__c,
                 Time_In_Chat__c,
                 User__c,
-                Contact__c
+                Contact__c,
+                Session_End_Time__c,
+                Event_Count__c
             FROM Agentforce_Activity__c
             WHERE Messaging_Session_Id__c = :sessionId
             ORDER BY Event_Timestamp__c ASC

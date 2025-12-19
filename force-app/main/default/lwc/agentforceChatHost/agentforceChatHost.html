@@ -11,7 +11,7 @@
         <template lwc:if={showWelcomeScreen}>
             <div class="welcome-screen">
                 <div class="welcome-content">
-                    <div class="agent-avatar">
+                    <div class="agent-avatar" style={agentIconStyle}>
                         <lightning-icon icon-name="standard:bot" size="large"></lightning-icon>
                     </div>
                     <h1 class="welcome-title">
@@ -57,7 +57,7 @@
                             onclick={handleMenuClick}>
                         </lightning-button-icon>
                     </div>
-                    <span class="header-title">{chatHeaderTitle}</span>
+                    <span class="header-title" style={headerTitleStyle}>{chatHeaderTitle}</span>
                 </div>
 
                 <!-- Loading Stencil - shown while initializing -->
@@ -106,7 +106,7 @@
                     <!-- Agent Joined Notice -->
                     <div class="agent-joined">
                         <lightning-icon icon-name="utility:check" size="xx-small"></lightning-icon>
-                        <span>Agentforce joined &bull; {sessionStartTime}</span>
+                        <span>{chatHeaderTitle} joined &bull; {sessionStartTime}</span>
                     </div>
 
                     <!-- Message List -->
@@ -114,11 +114,11 @@
                         <div key={msg.id} class={msg.containerClass}>
                             <div class="message-content">
                                 <template lwc:if={msg.isAgent}>
-                                    <div class="agent-icon">
+                                    <div class="agent-icon" style={agentIconStyle}>
                                         <lightning-icon icon-name="standard:bot" size="x-small"></lightning-icon>
                                     </div>
                                 </template>
-                                <div class={msg.bubbleClass}>
+                                <div class={msg.bubbleClass} style={msg.bubbleStyle}>
                                     <template lwc:if={msg.isHtml}>
                                         <lightning-formatted-rich-text value={msg.text}></lightning-formatted-rich-text>
                                     </template>
@@ -137,7 +137,7 @@
                     <template lwc:if={isAgentTyping}>
                         <div class="message-row agent">
                             <div class="message-content">
-                                <div class="agent-icon">
+                                <div class="agent-icon" style={agentIconStyle}>
                                     <lightning-icon icon-name="standard:bot" size="x-small"></lightning-icon>
                                 </div>
                                 <div class="typing-indicator">
@@ -175,7 +175,7 @@
         <template lwc:if={isLoading}>
             <div class="loading-overlay">
                 <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
-                <p>Connecting to Agentforce...</p>
+                <p>Connecting to {chatHeaderTitle}...</p>
             </div>
         </template>
 

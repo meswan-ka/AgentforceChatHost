@@ -1,18 +1,16 @@
 import { LightningElement, api, wire } from 'lwc';
 import { subscribe, unsubscribe, APPLICATION_SCOPE, MessageContext } from 'lightning/messageService';
 import AGENTFORCE_SESSION_CHANNEL from '@salesforce/messageChannel/AgentforceSessionChannel__c';
-import logActivity from '@salesforce/apex/AgentforceActivityService.logActivity';
-import logActivities from '@salesforce/apex/AgentforceActivityService.logActivities';
+import upsertSessionActivity from '@salesforce/apex/AgentforceActivityService.upsertSessionActivity';
 import Id from '@salesforce/user/Id';
 
 /**
  * @description Activity tracker component that subscribes to LMS and logs events to Apex
- * This component should be placed on Experience Cloud pages to track user engagement
+ * Stores ONE record per session with all events in a JSON array (Event_Data__c)
+ * Upserts on: 5 events OR 30 seconds OR session end (whichever comes first)
  */
 export default class AgentforceActivityTracker extends LightningElement {
     // Tracking configuration - set via Experience Builder properties
-    // NOTE: JS defaults must be false per LWC rules; meta.xml defaults override these when
-    // the component is added to a page. The meta.xml sets core tracking (session, messages, time) to true.
     @api trackSessionLifecycle = false;
     @api trackLinkClicks = false;
     @api trackFormSubmissions = false;
@@ -27,12 +25,14 @@ export default class AgentforceActivityTracker extends LightningElement {
     currentSessionId = null;
     sessionStartTime = null;
     messageCount = 0;
-    pendingActivities = [];
-    batchTimeout = null;
+    eventLog = []; // Array of all events for this session
+    upsertTimeout = null;
+    lastUpsertTime = null;
+    isSessionActive = false;
 
-    // Batch configuration
-    BATCH_DELAY_MS = 2000;
-    MAX_BATCH_SIZE = 50;
+    // Upsert trigger thresholds
+    EVENT_THRESHOLD = 5;
+    TIME_THRESHOLD_MS = 30000; // 30 seconds
 
     // Wire the message context
     @wire(MessageContext)
@@ -40,11 +40,43 @@ export default class AgentforceActivityTracker extends LightningElement {
 
     connectedCallback() {
         this.subscribeToChannel();
+        this.setupVisibilityHandler();
     }
 
     disconnectedCallback() {
         this.unsubscribeFromChannel();
-        this.flushPendingActivities();
+        this.removeVisibilityHandler();
+        // Final upsert on component destroy
+        if (this.isSessionActive && this.eventLog.length > 0) {
+            this.upsertSessionRecord(true);
+        }
+    }
+
+    /**
+     * Setup visibility change handler for browser close/tab switch
+     */
+    setupVisibilityHandler() {
+        this._visibilityHandler = this.handleVisibilityChange.bind(this);
+        document.addEventListener('visibilitychange', this._visibilityHandler);
+    }
+
+    /**
+     * Remove visibility change handler
+     */
+    removeVisibilityHandler() {
+        if (this._visibilityHandler) {
+            document.removeEventListener('visibilitychange', this._visibilityHandler);
+        }
+    }
+
+    /**
+     * Handle visibility change (browser close/tab switch)
+     */
+    handleVisibilityChange() {
+        if (document.visibilityState === 'hidden' && this.isSessionActive && this.eventLog.length > 0) {
+            // Use sendBeacon for reliability on page unload
+            this.upsertSessionRecord(false);
+        }
     }
 
     /**
@@ -85,11 +117,9 @@ export default class AgentforceActivityTracker extends LightningElement {
             data: data ? JSON.parse(data) : null
         });
 
-        // Update current session tracking
+        // Handle session start - reset tracking state
         if (eventType === 'SESSION_STARTED') {
-            this.currentSessionId = sessionId;
-            this.sessionStartTime = timestamp;
-            this.messageCount = 0;
+            this.resetSessionState(sessionId, timestamp);
         }
 
         // Check if we should track this event type
@@ -97,11 +127,42 @@ export default class AgentforceActivityTracker extends LightningElement {
             return;
         }
 
-        // Build activity record
-        const activity = this.buildActivityWrapper(sessionId, eventType, timestamp, data);
+        // Add event to log
+        this.addEventToLog(eventType, timestamp, data);
 
-        // Queue for batch insert
-        this.queueActivity(activity);
+        // Handle session end - immediate upsert
+        if (eventType === 'SESSION_ENDED') {
+            this.isSessionActive = false;
+            this.upsertSessionRecord(true);
+            return;
+        }
+
+        // Check if we should upsert (5 events OR 30 seconds)
+        this.checkUpsertTriggers();
+    }
+
+    /**
+     * Reset session state for new session
+     * @param {String} sessionId - New session ID
+     * @param {Number} timestamp - Session start timestamp
+     */
+    resetSessionState(sessionId, timestamp) {
+        // If there was a previous session with pending events, upsert it first
+        if (this.currentSessionId && this.eventLog.length > 0) {
+            this.upsertSessionRecord(true);
+        }
+
+        this.currentSessionId = sessionId;
+        this.sessionStartTime = timestamp;
+        this.messageCount = 0;
+        this.eventLog = [];
+        this.lastUpsertTime = Date.now();
+        this.isSessionActive = true;
+
+        if (this.upsertTimeout) {
+            clearTimeout(this.upsertTimeout);
+            this.upsertTimeout = null;
+        }
     }
 
     /**
@@ -127,23 +188,15 @@ export default class AgentforceActivityTracker extends LightningElement {
     }
 
     /**
-     * Build activity wrapper object for Apex
-     * @param {String} sessionId - Messaging Session ID
+     * Add event to the event log array
      * @param {String} eventType - Event type
      * @param {Number} timestamp - Unix timestamp
-     * @param {Object} data - Event-specific data
-     * @returns {Object} Activity wrapper
+     * @param {String} data - Event-specific data (JSON string)
      */
-    buildActivityWrapper(sessionId, eventType, timestamp, data) {
+    addEventToLog(eventType, timestamp, data) {
         // Update message count for message events
         if (eventType === 'MESSAGE_SENT' || eventType === 'MESSAGE_RECEIVED') {
             this.messageCount++;
-        }
-
-        // Calculate time in chat
-        let timeInChat = null;
-        if (this.trackTimeInChat && this.sessionStartTime) {
-            timeInChat = Math.floor((timestamp - this.sessionStartTime) / 1000);
         }
 
         // Map event type to picklist value
@@ -156,82 +209,121 @@ export default class AgentforceActivityTracker extends LightningElement {
             'MESSAGE_RECEIVED': 'Message_Received'
         };
 
-        return {
-            sessionId: sessionId,
-            eventType: eventTypeMap[eventType] || eventType,
+        const eventEntry = {
+            type: eventTypeMap[eventType] || eventType,
             timestamp: timestamp,
-            eventSource: data?.sourceComponent || this.componentName,
-            eventData: data ? JSON.stringify(data) : null,
+            source: this.componentName
+        };
+
+        // Include parsed data if available
+        if (data) {
+            try {
+                eventEntry.data = JSON.parse(data);
+            } catch (e) {
+                eventEntry.data = data;
+            }
+        }
+
+        this.eventLog.push(eventEntry);
+
+        console.log('[ActivityTracker] EVENT LOGGED:', {
+            eventType: eventEntry.type,
+            eventCount: this.eventLog.length,
+            messageCount: this.messageCount
+        });
+    }
+
+    /**
+     * Check if upsert triggers are met (5 events OR 30 seconds)
+     */
+    checkUpsertTriggers() {
+        const eventsSinceLastUpsert = this.eventLog.length;
+        const timeSinceLastUpsert = Date.now() - (this.lastUpsertTime || Date.now());
+
+        // Trigger on event threshold
+        if (eventsSinceLastUpsert >= this.EVENT_THRESHOLD) {
+            console.log('[ActivityTracker] UPSERT TRIGGER: Event threshold reached', eventsSinceLastUpsert);
+            this.upsertSessionRecord(false);
+            return;
+        }
+
+        // Clear existing timeout and set new one for time-based trigger
+        if (this.upsertTimeout) {
+            clearTimeout(this.upsertTimeout);
+        }
+
+        const remainingTime = this.TIME_THRESHOLD_MS - timeSinceLastUpsert;
+        if (remainingTime > 0) {
+            this.upsertTimeout = setTimeout(() => {
+                if (this.eventLog.length > 0 && this.isSessionActive) {
+                    console.log('[ActivityTracker] UPSERT TRIGGER: Time threshold reached');
+                    this.upsertSessionRecord(false);
+                }
+            }, remainingTime);
+        }
+    }
+
+    /**
+     * Build activity wrapper for upsert
+     * @param {Boolean} isSessionEnd - Whether this is the final upsert for session end
+     * @returns {Object} Activity wrapper object
+     */
+    buildSessionActivityWrapper(isSessionEnd) {
+        const now = Date.now();
+
+        // Calculate time in chat (seconds)
+        let timeInChat = null;
+        if (this.trackTimeInChat && this.sessionStartTime) {
+            timeInChat = Math.floor((now - this.sessionStartTime) / 1000);
+        }
+
+        return {
+            sessionId: this.currentSessionId,
+            eventType: isSessionEnd ? 'Session_Ended' : 'Session_Updated',
+            timestamp: this.sessionStartTime,
+            eventSource: this.componentName,
+            eventData: JSON.stringify(this.eventLog),
             messageCount: this.trackMessageCount ? this.messageCount : null,
             timeInChat: timeInChat,
             userId: Id,
-            contactId: null
+            contactId: null,
+            sessionEndTime: isSessionEnd ? now : null,
+            eventCount: this.eventLog.length
         };
     }
 
     /**
-     * Queue activity for batch insert
-     * @param {Object} activity - Activity wrapper
+     * Upsert the session activity record
+     * @param {Boolean} isSessionEnd - Whether this is the final upsert for session end
      */
-    queueActivity(activity) {
-        console.log('[ActivityTracker] QUEUED for Apex:', {
-            eventType: activity.eventType,
-            sessionId: activity.sessionId,
-            messageCount: activity.messageCount,
-            timeInChat: activity.timeInChat
+    async upsertSessionRecord(isSessionEnd) {
+        if (!this.currentSessionId || this.eventLog.length === 0) {
+            return;
+        }
+
+        // Clear any pending timeout
+        if (this.upsertTimeout) {
+            clearTimeout(this.upsertTimeout);
+            this.upsertTimeout = null;
+        }
+
+        const activityWrapper = this.buildSessionActivityWrapper(isSessionEnd);
+
+        console.log('[ActivityTracker] UPSERTING to Apex:', {
+            sessionId: activityWrapper.sessionId,
+            eventCount: activityWrapper.eventCount,
+            messageCount: activityWrapper.messageCount,
+            timeInChat: activityWrapper.timeInChat,
+            isSessionEnd: isSessionEnd
         });
-        this.pendingActivities.push(activity);
-
-        // If batch is full, flush immediately
-        if (this.pendingActivities.length >= this.MAX_BATCH_SIZE) {
-            this.flushPendingActivities();
-            return;
-        }
-
-        // Reset batch timeout
-        if (this.batchTimeout) {
-            clearTimeout(this.batchTimeout);
-        }
-
-        // Schedule batch flush
-        this.batchTimeout = setTimeout(() => {
-            this.flushPendingActivities();
-        }, this.BATCH_DELAY_MS);
-    }
-
-    /**
-     * Flush pending activities to Apex
-     */
-    async flushPendingActivities() {
-        if (this.pendingActivities.length === 0) {
-            return;
-        }
-
-        const activitiesToSend = [...this.pendingActivities];
-        this.pendingActivities = [];
-
-        if (this.batchTimeout) {
-            clearTimeout(this.batchTimeout);
-            this.batchTimeout = null;
-        }
 
         try {
-            console.log('[ActivityTracker] FLUSHING to Apex:', {
-                count: activitiesToSend.length,
-                eventTypes: activitiesToSend.map(a => a.eventType)
-            });
-            if (activitiesToSend.length === 1) {
-                await logActivity({ activity: activitiesToSend[0] });
-            } else {
-                await logActivities({ activities: activitiesToSend });
-            }
-            console.log('[ActivityTracker] APEX SUCCESS:', activitiesToSend.length, 'activities logged');
+            await upsertSessionActivity({ activity: activityWrapper });
+            console.log('[ActivityTracker] UPSERT SUCCESS');
+            this.lastUpsertTime = Date.now();
         } catch (error) {
-            console.error('Failed to log activities:', error);
-            // Re-queue failed activities for retry (with limit)
-            if (this.pendingActivities.length < this.MAX_BATCH_SIZE) {
-                this.pendingActivities.unshift(...activitiesToSend);
-            }
+            console.error('[ActivityTracker] UPSERT FAILED:', error);
+            // Don't clear eventLog on failure - will retry on next trigger
         }
     }
 
@@ -243,18 +335,12 @@ export default class AgentforceActivityTracker extends LightningElement {
     @api
     logEvent(eventType, data = {}) {
         if (!this.currentSessionId) {
-            console.warn('No active session to log event');
+            console.warn('[ActivityTracker] No active session to log event');
             return;
         }
 
-        const activity = this.buildActivityWrapper(
-            this.currentSessionId,
-            eventType,
-            Date.now(),
-            data
-        );
-
-        this.queueActivity(activity);
+        this.addEventToLog(eventType, Date.now(), JSON.stringify(data));
+        this.checkUpsertTriggers();
     }
 
     /**
@@ -264,5 +350,24 @@ export default class AgentforceActivityTracker extends LightningElement {
     @api
     getSessionId() {
         return this.currentSessionId;
+    }
+
+    /**
+     * Get current event count for this session
+     * @returns {Number} Number of events logged
+     */
+    @api
+    getEventCount() {
+        return this.eventLog.length;
+    }
+
+    /**
+     * Force an immediate upsert (useful for testing or manual triggers)
+     */
+    @api
+    forceUpsert() {
+        if (this.currentSessionId && this.eventLog.length > 0) {
+            this.upsertSessionRecord(false);
+        }
     }
 }

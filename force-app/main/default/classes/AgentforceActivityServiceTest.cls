@@ -10,50 +10,27 @@ private class AgentforceActivityServiceTest {
 
     @TestSetup
     static void setupTestData() {
-        List<Agentforce_Activity__c> activities = new List<Agentforce_Activity__c>();
+        // New design: ONE record per session with all events in Event_Data__c JSON array
+        String eventLogJson = '[' +
+            '{"type":"Session_Started","timestamp":' + Datetime.now().addMinutes(-10).getTime() + ',"source":"agentforceChatHost","data":{"welcomeMessage":"Hello!"}},' +
+            '{"type":"Message_Sent","timestamp":' + Datetime.now().addMinutes(-8).getTime() + ',"source":"agentforceChatHost","data":{"messageIndex":1}},' +
+            '{"type":"Link_Click","timestamp":' + Datetime.now().addMinutes(-5).getTime() + ',"source":"productCatalog","data":{"linkUrl":"/products/123","linkLabel":"View Product"}},' +
+            '{"type":"Session_Ended","timestamp":' + Datetime.now().getTime() + ',"source":"agentforceChatHost","data":{"duration":600,"messageCount":5}}' +
+        ']';
 
-        // Create test activities for session 1
-        activities.add(new Agentforce_Activity__c(
-            Messaging_Session_Id__c = TEST_SESSION_ID,
-            Event_Type__c = 'Session_Started',
-            Event_Timestamp__c = Datetime.now().addMinutes(-10),
-            Event_Source__c = 'agentforceChatHost',
-            Event_Data__c = '{"welcomeMessage": "Hello!"}',
-            Message_Count__c = 0,
-            Time_In_Chat__c = 0
-        ));
-
-        activities.add(new Agentforce_Activity__c(
-            Messaging_Session_Id__c = TEST_SESSION_ID,
-            Event_Type__c = 'Message_Sent',
-            Event_Timestamp__c = Datetime.now().addMinutes(-8),
-            Event_Source__c = 'agentforceChatHost',
-            Event_Data__c = '{"messageIndex": 1}',
-            Message_Count__c = 1,
-            Time_In_Chat__c = 120
-        ));
-
-        activities.add(new Agentforce_Activity__c(
-            Messaging_Session_Id__c = TEST_SESSION_ID,
-            Event_Type__c = 'Link_Click',
-            Event_Timestamp__c = Datetime.now().addMinutes(-5),
-            Event_Source__c = 'productCatalog',
-            Event_Data__c = '{"linkUrl": "/products/123", "linkLabel": "View Product"}',
-            Message_Count__c = 2,
-            Time_In_Chat__c = 300
-        ));
-
-        activities.add(new Agentforce_Activity__c(
+        Agentforce_Activity__c sessionRecord = new Agentforce_Activity__c(
             Messaging_Session_Id__c = TEST_SESSION_ID,
             Event_Type__c = 'Session_Ended',
-            Event_Timestamp__c = Datetime.now(),
+            Event_Timestamp__c = Datetime.now().addMinutes(-10),
             Event_Source__c = 'agentforceChatHost',
-            Event_Data__c = '{"duration": 600, "messageCount": 5}',
+            Event_Data__c = eventLogJson,
             Message_Count__c = 5,
-            Time_In_Chat__c = 600
-        ));
+            Time_In_Chat__c = 600,
+            Event_Count__c = 4,
+            Session_End_Time__c = Datetime.now()
+        );
 
-        insert activities;
+        insert sessionRecord;
     }
 
     @IsTest
@@ -112,10 +89,15 @@ private class AgentforceActivityServiceTest {
     @IsTest
     static void testLogActivitiesBulkSuccess() {
         List<AgentforceActivityWrapper> wrappers = new List<AgentforceActivityWrapper>();
+        List<String> sessionIds = new List<String>();
 
+        // Each record must have unique session ID due to unique constraint
         for (Integer i = 0; i < 5; i++) {
+            String uniqueSessionId = 'bulk-test-' + Datetime.now().getTime() + '-' + i;
+            sessionIds.add(uniqueSessionId);
+
             AgentforceActivityWrapper wrapper = new AgentforceActivityWrapper();
-            wrapper.sessionId = TEST_SESSION_ID_2;
+            wrapper.sessionId = uniqueSessionId;
             wrapper.eventType = 'Message_Sent';
             wrapper.timestamp = Datetime.now().getTime();
             wrapper.eventSource = 'agentforceChatHost';
@@ -131,7 +113,7 @@ private class AgentforceActivityServiceTest {
 
         List<Agentforce_Activity__c> records = [
             SELECT Id FROM Agentforce_Activity__c
-            WHERE Messaging_Session_Id__c = :TEST_SESSION_ID_2
+            WHERE Messaging_Session_Id__c IN :sessionIds
         ];
         System.assertEquals(5, records.size(), 'Should have 5 records in database');
     }
@@ -163,10 +145,11 @@ private class AgentforceActivityServiceTest {
     @IsTest
     static void testLogActivitiesSkipsInvalid() {
         List<AgentforceActivityWrapper> wrappers = new List<AgentforceActivityWrapper>();
+        String uniqueSessionId = 'skip-invalid-test-' + Datetime.now().getTime();
 
-        // Valid wrapper
+        // Valid wrapper with unique session ID
         AgentforceActivityWrapper valid = new AgentforceActivityWrapper();
-        valid.sessionId = TEST_SESSION_ID_2;
+        valid.sessionId = uniqueSessionId;
         valid.eventType = 'Session_Started';
         valid.timestamp = Datetime.now().getTime();
         wrappers.add(valid);
@@ -192,9 +175,12 @@ private class AgentforceActivityServiceTest {
         List<AgentforceActivityWrapper> activities = AgentforceActivityService.getSessionActivities(TEST_SESSION_ID);
         Test.stopTest();
 
-        System.assertEquals(4, activities.size(), 'Should return 4 activities');
-        System.assertEquals('Session_Started', activities[0].eventType, 'First activity should be Session_Started');
-        System.assertEquals('Session_Ended', activities[3].eventType, 'Last activity should be Session_Ended');
+        // New design: ONE record per session with all events in Event_Data__c JSON array
+        System.assertEquals(1, activities.size(), 'Should return 1 session record');
+        System.assertEquals('Session_Ended', activities[0].eventType, 'Session record should have Session_Ended event type');
+        System.assertEquals(5, activities[0].messageCount, 'Message count should be 5');
+        System.assertEquals(600, activities[0].timeInChat, 'Time in chat should be 600');
+        System.assertEquals(4, activities[0].eventCount, 'Event count should be 4');
     }
 
     @IsTest
@@ -224,14 +210,15 @@ private class AgentforceActivityServiceTest {
         Map<String, Object> summary = AgentforceActivityService.getSessionSummary(TEST_SESSION_ID);
         Test.stopTest();
 
-        System.assertEquals(4, summary.get('totalEvents'), 'Should have 4 total events');
+        // New design: ONE record per session, so totalEvents = 1 record
+        System.assertEquals(1, summary.get('totalEvents'), 'Should have 1 session record');
         System.assertEquals(5, Integer.valueOf(summary.get('messageCount')), 'Message count should be 5');
         System.assertEquals(600, Integer.valueOf(summary.get('timeInChat')), 'Time in chat should be 600');
 
         Map<String, Integer> breakdown = (Map<String, Integer>) summary.get('eventBreakdown');
         System.assertNotEquals(null, breakdown, 'Event breakdown should exist');
-        System.assertEquals(1, breakdown.get('Session_Started'), 'Should have 1 Session_Started');
-        System.assertEquals(1, breakdown.get('Link_Click'), 'Should have 1 Link_Click');
+        // With new design, breakdown only counts the final event type on the session record
+        System.assertEquals(1, breakdown.get('Session_Ended'), 'Should have 1 Session_Ended');
     }
 
     @IsTest
@@ -341,5 +328,147 @@ private class AgentforceActivityServiceTest {
         System.assertEquals(null, wrapper.timestamp, 'Timestamp should be null');
         System.assertEquals(null, wrapper.messageCount, 'Message count should be null');
         System.assertEquals(null, wrapper.timeInChat, 'Time in chat should be null');
+    }
+
+    @IsTest
+    static void testUpsertSessionActivityInsert() {
+        String newSessionId = 'session-' + Datetime.now().getTime() + '-test123';
+
+        AgentforceActivityWrapper wrapper = new AgentforceActivityWrapper();
+        wrapper.sessionId = newSessionId;
+        wrapper.eventType = 'Session_Updated';
+        wrapper.timestamp = Datetime.now().getTime();
+        wrapper.eventSource = 'agentforceActivityTracker';
+        wrapper.eventData = '[{"type":"SESSION_STARTED","ts":' + Datetime.now().getTime() + '}]';
+        wrapper.messageCount = 0;
+        wrapper.timeInChat = 0;
+        wrapper.eventCount = 1;
+
+        Test.startTest();
+        Id recordId = AgentforceActivityService.upsertSessionActivity(wrapper);
+        Test.stopTest();
+
+        System.assertNotEquals(null, recordId, 'Record ID should not be null');
+
+        Agentforce_Activity__c record = [
+            SELECT Messaging_Session_Id__c, Event_Type__c, Event_Count__c
+            FROM Agentforce_Activity__c
+            WHERE Id = :recordId
+        ];
+        System.assertEquals(newSessionId, record.Messaging_Session_Id__c, 'Session ID should match');
+        System.assertEquals('Session_Updated', record.Event_Type__c, 'Event type should be Session_Updated');
+        System.assertEquals(1, record.Event_Count__c, 'Event count should be 1');
+    }
+
+    @IsTest
+    static void testUpsertSessionActivityUpdate() {
+        String newSessionId = 'session-' + Datetime.now().getTime() + '-upsert';
+
+        // First insert
+        AgentforceActivityWrapper wrapper1 = new AgentforceActivityWrapper();
+        wrapper1.sessionId = newSessionId;
+        wrapper1.eventType = 'Session_Updated';
+        wrapper1.timestamp = Datetime.now().getTime();
+        wrapper1.eventSource = 'agentforceActivityTracker';
+        wrapper1.eventData = '[{"type":"SESSION_STARTED"}]';
+        wrapper1.messageCount = 0;
+        wrapper1.timeInChat = 0;
+        wrapper1.eventCount = 1;
+
+        Test.startTest();
+        Id recordId1 = AgentforceActivityService.upsertSessionActivity(wrapper1);
+
+        // Second upsert (update)
+        AgentforceActivityWrapper wrapper2 = new AgentforceActivityWrapper();
+        wrapper2.sessionId = newSessionId;
+        wrapper2.eventType = 'Session_Updated';
+        wrapper2.timestamp = Datetime.now().getTime();
+        wrapper2.eventSource = 'agentforceActivityTracker';
+        wrapper2.eventData = '[{"type":"SESSION_STARTED"},{"type":"MESSAGE_SENT"}]';
+        wrapper2.messageCount = 1;
+        wrapper2.timeInChat = 30;
+        wrapper2.eventCount = 2;
+
+        Id recordId2 = AgentforceActivityService.upsertSessionActivity(wrapper2);
+        Test.stopTest();
+
+        System.assertEquals(recordId1, recordId2, 'Should update same record, not create new');
+
+        Agentforce_Activity__c record = [
+            SELECT Message_Count__c, Time_In_Chat__c, Event_Count__c
+            FROM Agentforce_Activity__c
+            WHERE Id = :recordId2
+        ];
+        System.assertEquals(1, record.Message_Count__c, 'Message count should be updated to 1');
+        System.assertEquals(30, record.Time_In_Chat__c, 'Time in chat should be updated to 30');
+        System.assertEquals(2, record.Event_Count__c, 'Event count should be updated to 2');
+
+        // Verify only one record exists for this session
+        List<Agentforce_Activity__c> allRecords = [
+            SELECT Id FROM Agentforce_Activity__c
+            WHERE Messaging_Session_Id__c = :newSessionId
+        ];
+        System.assertEquals(1, allRecords.size(), 'Should only have 1 record per session');
+    }
+
+    @IsTest
+    static void testUpsertSessionActivityNullActivity() {
+        Test.startTest();
+        try {
+            AgentforceActivityService.upsertSessionActivity(null);
+            System.assert(false, 'Should have thrown exception');
+        } catch (AuraHandledException e) {
+            System.assertNotEquals(null, e.getMessage(), 'Should have error message');
+        }
+        Test.stopTest();
+    }
+
+    @IsTest
+    static void testUpsertSessionActivityMissingSessionId() {
+        AgentforceActivityWrapper wrapper = new AgentforceActivityWrapper();
+        wrapper.eventType = 'Session';
+
+        Test.startTest();
+        try {
+            AgentforceActivityService.upsertSessionActivity(wrapper);
+            System.assert(false, 'Should have thrown exception');
+        } catch (AuraHandledException e) {
+            System.assertNotEquals(null, e.getMessage(), 'Should have error message');
+        }
+        Test.stopTest();
+    }
+
+    @IsTest
+    static void testWrapperNewFields() {
+        Long now = Datetime.now().getTime();
+        Long endTime = now + 60000; // 1 minute later
+
+        AgentforceActivityWrapper wrapper = new AgentforceActivityWrapper();
+        wrapper.sessionId = TEST_SESSION_ID_2;
+        wrapper.eventType = 'Session';
+        wrapper.timestamp = now;
+        wrapper.sessionEndTime = endTime;
+        wrapper.eventCount = 5;
+
+        Agentforce_Activity__c record = wrapper.toSObject();
+
+        System.assertEquals(5, record.Event_Count__c, 'Event count should be 5');
+        System.assertNotEquals(null, record.Session_End_Time__c, 'Session end time should be set');
+    }
+
+    @IsTest
+    static void testWrapperFromSObjectNewFields() {
+        Agentforce_Activity__c record = new Agentforce_Activity__c(
+            Messaging_Session_Id__c = TEST_SESSION_ID_2,
+            Event_Type__c = 'Session',
+            Event_Timestamp__c = Datetime.now(),
+            Session_End_Time__c = Datetime.now().addMinutes(5),
+            Event_Count__c = 10
+        );
+
+        AgentforceActivityWrapper wrapper = AgentforceActivityWrapper.fromSObject(record);
+
+        System.assertEquals(10, wrapper.eventCount, 'Event count should be 10');
+        System.assertNotEquals(null, wrapper.sessionEndTime, 'Session end time should be set');
     }
 }
