@@ -56,6 +56,19 @@
                             alternative-text="Menu"
                             onclick={handleMenuClick}>
                         </lightning-button-icon>
+                        <template lwc:if={isMenuOpen}>
+                            <div class="menu-dropdown">
+                                <button class="menu-item" onclick={handleDownloadTranscriptClick}>
+                                    <lightning-icon icon-name="utility:download" size="x-small"></lightning-icon>
+                                    <span>Download Transcript</span>
+                                </button>
+                                <button class="menu-item menu-item-danger" onclick={handleEndSessionClick}>
+                                    <lightning-icon icon-name="utility:close" size="x-small"></lightning-icon>
+                                    <span>End Session</span>
+                                </button>
+                            </div>
+                            <div class="menu-overlay" onclick={handleCloseMenu}></div>
+                        </template>
                     </div>
                     <span class="header-title" style={headerTitleStyle}>{chatHeaderTitle}</span>
                 </div>

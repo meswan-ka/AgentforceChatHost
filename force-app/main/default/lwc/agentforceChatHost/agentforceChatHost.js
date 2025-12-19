@@ -75,6 +75,7 @@ export default class AgentforceChatHost extends LightningElement {
     errorMessage = '';
     _isInitializing = false;
     _initializingStatus = 'Connecting...';
+    _isMenuOpen = false;
 
     // Background Image State
     _backgroundImageUrl = null;
@@ -991,7 +992,59 @@ export default class AgentforceChatHost extends LightningElement {
     }
 
     handleMenuClick() {
-        // Menu functionality placeholder
+        this._isMenuOpen = !this._isMenuOpen;
+    }
+
+    handleCloseMenu() {
+        this._isMenuOpen = false;
+    }
+
+    get isMenuOpen() {
+        return this._isMenuOpen;
+    }
+
+    handleEndSessionClick() {
+        this._isMenuOpen = false;
+        this.endSession();
+    }
+
+    handleDownloadTranscriptClick() {
+        this._isMenuOpen = false;
+        this._downloadTranscript();
+    }
+
+    /**
+     * Generate and download chat transcript as a text file
+     */
+    _downloadTranscript() {
+        if (this.messages.length === 0) {
+            return;
+        }
+
+        // Build transcript content
+        let transcript = `Chat Transcript - ${this.chatHeaderTitle}\n`;
+        transcript += `Session ID: ${this.currentSessionId}\n`;
+        transcript += `Date: ${new Date().toLocaleDateString()}\n`;
+        transcript += `${'='.repeat(50)}\n\n`;
+
+        for (const msg of this.messages) {
+            transcript += `[${msg.time}] ${msg.senderName}:\n`;
+            transcript += `${msg.text}\n\n`;
+        }
+
+        transcript += `${'='.repeat(50)}\n`;
+        transcript += `End of transcript - ${this.messages.length} messages`;
+
+        // Create and trigger download
+        const blob = new Blob([transcript], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `chat-transcript-${new Date().toISOString().split('T')[0]}.txt`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
     }
 
     handleRetry() {
