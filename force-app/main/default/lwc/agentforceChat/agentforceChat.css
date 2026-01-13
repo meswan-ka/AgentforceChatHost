@@ -1,0 +1,138 @@
+/* ==================== WRAPPER ==================== */
+.agentforce-chat-wrapper {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    min-height: 400px;
+}
+
+/* ==================== CHAT CONTAINER ==================== */
+/* This container receives the Embedded Service inline chat */
+.chat-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #ffffff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+/* ==================== EMBEDDED SERVICE MESSAGING (Enhanced v2) ==================== */
+/* Force all iframes and embedded content to fill the container */
+.chat-container iframe {
+    width: 100% !important;
+    height: 100% !important;
+    border: none !important;
+    display: block !important;
+}
+
+/* Target the Messaging for Web iframe specifically */
+.chat-container [class*="embeddedMessaging"] {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.chat-container [class*="embedded-messaging"] {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* Ensure any div children fill the container */
+.chat-container > div {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* Legacy Embedded Service classes (older versions) */
+.chat-container .embeddedServiceSidebar {
+    height: 100% !important;
+    width: 100% !important;
+}
+
+.chat-container .embeddedServiceSidebarMinimizedDefaultUI {
+    display: none !important;
+}
+
+/* ==================== LOADING STATE ==================== */
+.loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: 2rem;
+    text-align: center;
+    gap: 1rem;
+    background: linear-gradient(
+        180deg,
+        #e8f4fd 0%,
+        #f5f9fc 50%,
+        #ffffff 100%
+    );
+}
+
+.loading-text {
+    color: #706e6b;
+    font-size: 0.875rem;
+    margin: 0;
+}
+
+/* ==================== ERROR STATE ==================== */
+.error-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: 2rem;
+    text-align: center;
+    gap: 1rem;
+    background: #fff;
+}
+
+.error-text {
+    color: #c23934;
+    font-size: 0.875rem;
+    margin: 0;
+    max-width: 300px;
+}
+
+/* ==================== CONFIG REQUIRED STATE ==================== */
+.config-required-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: 2rem;
+    text-align: center;
+    gap: 1rem;
+    background: linear-gradient(
+        180deg,
+        #f5f5f5 0%,
+        #ffffff 100%
+    );
+}
+
+.config-required-state lightning-icon {
+    --sds-c-icon-color-foreground-default: #706e6b;
+}
+
+.config-text {
+    color: #706e6b;
+    font-size: 0.875rem;
+    margin: 0;
+    max-width: 300px;
+}
+
+/* ==================== HIDDEN CONTAINER (FLOATING MODE) ==================== */
+/* This container is needed for bootstrap reference but should take no visual space */
+.chat-container-hidden {
+    position: absolute;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+    visibility: hidden;
+    pointer-events: none;
+}

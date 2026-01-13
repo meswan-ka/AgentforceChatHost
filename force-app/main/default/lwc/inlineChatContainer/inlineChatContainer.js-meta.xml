@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>62.0</apiVersion>
+    <isExposed>true</isExposed>
+    <masterLabel>Inline Chat Container</masterLabel>
+    <description>Agentforce Embedded Service - Enhanced Chat v2 with Inline Mode support for Experience Cloud sites</description>
+    
+    <targets>
+        <target>lightningCommunity__Page</target>
+        <target>lightningCommunity__Default</target>
+        <target>lightning__RecordPage</target>
+        <target>lightning__AppPage</target>
+        <target>lightning__HomePage</target>
+    </targets>
+    
+    <targetConfigs>
+        <targetConfig targets="lightningCommunity__Default">
+            <!-- Required Configuration -->
+            <property name="orgId" 
+                      type="String" 
+                      label="Org ID" 
+                      description="Your Salesforce Org ID (e.g., 00D...)" 
+                      required="true"/>
+            
+            <property name="deploymentApiName" 
+                      type="String" 
+                      label="Deployment API Name" 
+                      description="The API name of your Embedded Service Deployment" 
+                      required="true"/>
+            
+            <property name="siteUrl" 
+                      type="String" 
+                      label="Site URL" 
+                      description="Your Experience Cloud Site URL (e.g., https://yourdomain.my.site.com/yoursite)" 
+                      required="true"/>
+            
+            <property name="scrt2Url" 
+                      type="String" 
+                      label="SCRT2 URL" 
+                      description="The SCRT2 URL for messaging (e.g., https://yourdomain.my.salesforce-scrt.com)" 
+                      required="true"/>
+            
+            <!-- Display Configuration -->
+            <property name="displayMode" 
+                      type="String" 
+                      label="Display Mode" 
+                      description="How the chat should be displayed"
+                      datasource="inline,floating"
+                      default="inline"/>
+            
+            <property name="showHeader" 
+                      type="Boolean" 
+                      label="Show Chat Header" 
+                      description="Show/hide the Salesforce-provided header in inline mode" 
+                      default="false"/>
+            
+            <property name="containerHeight" 
+                      type="String" 
+                      label="Container Height" 
+                      description="Height of the chat container (e.g., 600px, 100%, 80vh)" 
+                      default="600px"/>
+            
+            <property name="containerWidth" 
+                      type="String" 
+                      label="Container Width" 
+                      description="Width of the chat container (e.g., 400px, 100%)" 
+                      default="100%"/>
+            
+            <property name="language" 
+                      type="String" 
+                      label="Language" 
+                      description="Language code for the chat interface" 
+                      default="en_US"/>
+            
+            <!-- Conditional Display Options -->
+            <property name="enableConditionalMode" 
+                      type="Boolean" 
+                      label="Enable Conditional Mode" 
+                      description="Enable URL-based switching between inline and floating modes" 
+                      default="false"/>
+            
+            <property name="inlineTriggerPath" 
+                      type="String" 
+                      label="Inline Trigger Path" 
+                      description="URL path segment that triggers inline mode (e.g., global-search)" 
+                      default=""/>
+            
+            <property name="inlineTriggerParam" 
+                      type="String" 
+                      label="Inline Trigger Parameter" 
+                      description="URL query parameter that triggers inline mode (e.g., query)" 
+                      default=""/>
+            
+            <!-- Auto-launch Options -->
+            <property name="autoLaunch" 
+                      type="Boolean" 
+                      label="Auto Launch Chat" 
+                      description="Automatically open the chat when the component loads" 
+                      default="false"/>
+            
+            <property name="autoLaunchDelay" 
+                      type="Integer" 
+                      label="Auto Launch Delay (ms)" 
+                      description="Delay in milliseconds before auto-launching chat" 
+                      default="1000"/>
+            
+            <property name="initialMessage" 
+                      type="String" 
+                      label="Initial Message" 
+                      description="Optional message to send automatically when chat launches" 
+                      default=""/>
+        </targetConfig>
+        
+        <targetConfig targets="lightning__RecordPage,lightning__AppPage,lightning__HomePage">
+            <!-- Simplified config for Lightning App Builder -->
+            <property name="orgId" 
+                      type="String" 
+                      label="Org ID" 
+                      required="true"/>
+            
+            <property name="deploymentApiName" 
+                      type="String" 
+                      label="Deployment API Name" 
+                      required="true"/>
+            
+            <property name="siteUrl" 
+                      type="String" 
+                      label="Site URL" 
+                      required="true"/>
+            
+            <property name="scrt2Url" 
+                      type="String" 
+                      label="SCRT2 URL" 
+                      required="true"/>
+            
+            <property name="displayMode" 
+                      type="String" 
+                      label="Display Mode" 
+                      datasource="inline,floating"
+                      default="inline"/>
+            
+            <property name="containerHeight" 
+                      type="String" 
+                      label="Container Height" 
+                      default="600px"/>
+        </targetConfig>
+    </targetConfigs>
+</LightningComponentBundle>

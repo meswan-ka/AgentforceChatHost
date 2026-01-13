@@ -1,0 +1,134 @@
+<template>
+    <!-- DEPLOYMENT SETUP SECTION -->
+    <div class="slds-card slds-card_boundary">
+        <div class="section-header" onclick={toggleDeployment}>
+            <lightning-icon icon-name={deploymentIconName} size="xx-small"></lightning-icon>
+            <span class="section-title">Deployment Setup</span>
+        </div>
+        <template lwc:if={isDeploymentExpanded}>
+            <div class="section-content">
+                <lightning-input
+                    label="Org ID"
+                    value={orgId}
+                    onchange={handleOrgIdChange}
+                    placeholder="00D..."
+                    field-level-help="Your Salesforce Org ID (starts with 00D)">
+                </lightning-input>
+
+                <lightning-input
+                    label="Deployment Developer Name"
+                    value={deploymentDeveloperName}
+                    onchange={handleDeploymentChange}
+                    placeholder="My_Embedded_Service"
+                    field-level-help="The API name of your Embedded Service Deployment">
+                </lightning-input>
+
+                <lightning-input
+                    label="Site URL"
+                    value={siteUrl}
+                    onchange={handleSiteUrlChange}
+                    placeholder="https://yoursite.my.site.com"
+                    field-level-help="Your Experience Cloud site URL">
+                </lightning-input>
+
+                <lightning-input
+                    label="SCRT URL"
+                    value={scrtUrl}
+                    onchange={handleScrtUrlChange}
+                    placeholder="https://yourorg.my.salesforce-scrt.com"
+                    field-level-help="Service Cloud Real-Time URL from your Embedded Service Deployment settings"
+                    required>
+                </lightning-input>
+
+            </div>
+        </template>
+    </div>
+
+    <!-- DISPLAY SECTION -->
+    <div class="slds-card slds-card_boundary">
+        <div class="section-header" onclick={toggleDisplay}>
+            <lightning-icon icon-name={displayIconName} size="xx-small"></lightning-icon>
+            <span class="section-title">Display Settings</span>
+        </div>
+        <template lwc:if={isDisplayExpanded}>
+            <div class="section-content">
+                <lightning-combobox
+                    label="Display Mode"
+                    value={displayMode}
+                    options={displayModeOptions}
+                    onchange={handleDisplayModeChange}
+                    field-level-help="Inline renders chat in this container. Floating shows the default FAB button.">
+                </lightning-combobox>
+
+                <lightning-combobox
+                    label="Height"
+                    value={height}
+                    options={heightOptions}
+                    onchange={handleHeightChange}>
+                </lightning-combobox>
+
+                <lightning-slider
+                    label="Width (%)"
+                    value={widthPercent}
+                    min="50"
+                    max="100"
+                    step="5"
+                    onchange={handleWidthChange}>
+                </lightning-slider>
+
+                <lightning-input
+                    type="checkbox"
+                    label="Show Chat Header"
+                    checked={showHeader}
+                    onchange={handleShowHeaderChange}
+                    field-level-help="Show or hide the Salesforce-provided chat header">
+                </lightning-input>
+            </div>
+        </template>
+    </div>
+
+    <!-- CONDITIONAL DISPLAY SECTION -->
+    <div class="slds-card slds-card_boundary">
+        <div class="section-header" onclick={toggleConditional}>
+            <lightning-icon icon-name={conditionalIconName} size="xx-small"></lightning-icon>
+            <span class="section-title">Conditional Display</span>
+        </div>
+        <template lwc:if={isConditionalExpanded}>
+            <div class="section-content">
+                <lightning-input
+                    type="checkbox"
+                    label="Enable URL-based Switching"
+                    checked={enableConditionalDisplay}
+                    onchange={handleConditionalToggle}
+                    field-level-help="Switch between inline and floating mode based on URL conditions">
+                </lightning-input>
+
+                <template lwc:if={enableConditionalDisplay}>
+                    <lightning-input
+                        label="Path Pattern"
+                        value={conditionalPathPattern}
+                        onchange={handlePathPatternChange}
+                        placeholder="global-search"
+                        field-level-help="Show inline when URL path contains this pattern (e.g., 'global-search')">
+                    </lightning-input>
+
+                    <lightning-input
+                        label="Query Parameter"
+                        value={conditionalQueryParam}
+                        onchange={handleQueryParamChange}
+                        placeholder="term"
+                        field-level-help="Show inline when this URL query parameter is present (e.g., '?term=search')">
+                    </lightning-input>
+
+                    <lightning-input
+                        type="checkbox"
+                        label="Invert Condition"
+                        checked={invertCondition}
+                        onchange={handleInvertConditionChange}
+                        field-level-help="Show inline when condition does NOT match (useful for showing inline everywhere except specific pages)">
+                    </lightning-input>
+                </template>
+            </div>
+        </template>
+    </div>
+</template>

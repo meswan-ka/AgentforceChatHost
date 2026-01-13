@@ -1,0 +1,205 @@
+<template>
+    <div class={wrapperClass} style={wrapperStyle}>
+        <!-- Background Image Layer (decorative only) -->
+        <template lwc:if={hasBackgroundImage}>
+            <div class="background-layer" style={backgroundStyle}></div>
+        </template>
+
+        <!-- Chat Container (sits on top of background) -->
+        <div class={containerClass} style={containerStyle}>
+        <!-- Pre-Chat Welcome Screen -->
+        <template lwc:if={showWelcomeScreen}>
+            <div class="welcome-screen">
+                <div class="welcome-content">
+                    <div class="agent-avatar" style={agentIconStyle}>
+                        <lightning-icon icon-name="standard:bot" size="large"></lightning-icon>
+                    </div>
+                    <h1 class="welcome-title" style={welcomeTitleStyle}>
+                        <template for:each={titleParts} for:item="part">
+                            <template lwc:if={part.isCallout}>
+                                <span key={part.text} class="callout" style={calloutStyle}>{part.text}</span>
+                            </template>
+                            <template lwc:else>
+                                <span key={part.text}>{part.text}</span>
+                            </template>
+                        </template>
+                    </h1>
+                    <p class="welcome-subtitle">{welcomeMessage}</p>
+                </div>
+                <div class="input-container">
+                    <input
+                        type="text"
+                        class="message-input"
+                        placeholder="Type your message..."
+                        value={inputMessage}
+                        onkeyup={handleKeyUp}
+                        oninput={handleInputChange}
+                    />
+                    <button class="send-button" onclick={handleSendMessage} disabled={isSendDisabled} style={sendButtonStyle}>
+                        <svg class="send-icon" viewBox="0 0 52 52" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M2.1 47.4c-.6 2.1 1.4 3.9 3.4 3.1L49.7 28c1.7-.7 1.7-3.1 0-3.8L5.5 1.5C3.5.7 1.5 2.5 2.1 4.6l5.9 18.2c.2.7.8 1.2 1.5 1.3l21.3 2.1c.8.1.8 1.3 0 1.4L9.5 29.7c-.7.1-1.3.6-1.5 1.3L2.1 47.4z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </template>
+
+        <!-- Active Chat Conversation -->
+        <template lwc:if={showChatScreen}>
+            <div class="chat-screen">
+                <!-- Chat Header -->
+                <div class="chat-header">
+                    <div class="header-menu">
+                        <lightning-button-icon
+                            icon-name="utility:threedots_vertical"
+                            variant="bare"
+                            alternative-text="Menu"
+                            onclick={handleMenuClick}>
+                        </lightning-button-icon>
+                        <template lwc:if={isMenuOpen}>
+                            <div class="menu-dropdown">
+                                <button class="menu-item" onclick={handleDownloadTranscriptClick}>
+                                    <lightning-icon icon-name="utility:download" size="x-small"></lightning-icon>
+                                    <span>Download Transcript</span>
+                                </button>
+                                <button class="menu-item menu-item-danger" onclick={handleEndSessionClick}>
+                                    <lightning-icon icon-name="utility:close" size="x-small"></lightning-icon>
+                                    <span>End Session</span>
+                                </button>
+                            </div>
+                            <div class="menu-overlay" onclick={handleCloseMenu}></div>
+                        </template>
+                    </div>
+                    <span class="header-title" style={headerTitleStyle}>{chatHeaderTitle}</span>
+                </div>
+
+                <!-- Loading Stencil - shown while initializing -->
+                <template lwc:if={isInitializing}>
+                    <div class="messages-container">
+                        <div class="stencil-container">
+                            <!-- Stencil Date Header -->
+                            <div class="stencil-line stencil-date"></div>
+
+                            <!-- Stencil Agent Joined -->
+                            <div class="stencil-line stencil-joined"></div>
+
+                            <!-- Stencil Agent Message -->
+                            <div class="stencil-message agent">
+                                <div class="stencil-avatar"></div>
+                                <div class="stencil-bubble">
+                                    <div class="stencil-line stencil-text-long"></div>
+                                    <div class="stencil-line stencil-text-medium"></div>
+                                </div>
+                            </div>
+
+                            <!-- Stencil User Message -->
+                            <div class="stencil-message user">
+                                <div class="stencil-bubble user">
+                                    <div class="stencil-line stencil-text-short"></div>
+                                </div>
+                            </div>
+
+                            <!-- Loading Status -->
+                            <div class="stencil-status">
+                                <lightning-spinner alternative-text="Connecting" size="small"></lightning-spinner>
+                                <span>{initializingStatus}</span>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Messages Container - shown after initialization -->
+                <template lwc:if={showMessages}>
+                <div class="messages-container" lwc:ref="messagesContainer">
+                    <!-- Date/Time Header -->
+                    <div class="message-date">
+                        <span>Today &bull; {currentTime}</span>
+                    </div>
+
+                    <!-- Agent Joined Notice -->
+                    <div class="agent-joined">
+                        <lightning-icon icon-name="utility:check" size="xx-small"></lightning-icon>
+                        <span>{chatHeaderTitle} joined &bull; {sessionStartTime}</span>
+                    </div>
+
+                    <!-- Message List -->
+                    <template for:each={messages} for:item="msg">
+                        <div key={msg.id} class={msg.containerClass}>
+                            <div class="message-content">
+                                <template lwc:if={msg.isAgent}>
+                                    <div class="agent-icon" style={agentIconStyle}>
+                                        <lightning-icon icon-name="standard:bot" size="x-small"></lightning-icon>
+                                    </div>
+                                </template>
+                                <div class={msg.bubbleClass} style={msg.bubbleStyle}>
+                                    <template lwc:if={msg.isHtml}>
+                                        <lightning-formatted-rich-text value={msg.text}></lightning-formatted-rich-text>
+                                    </template>
+                                    <template lwc:else>
+                                        <p>{msg.text}</p>
+                                    </template>
+                                </div>
+                            </div>
+                            <div class="message-time">
+                                <span>{msg.senderName} &bull; {msg.time}</span>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- Typing Indicator -->
+                    <template lwc:if={isAgentTyping}>
+                        <div class="message-row agent">
+                            <div class="message-content">
+                                <div class="agent-icon" style={agentIconStyle}>
+                                    <lightning-icon icon-name="standard:bot" size="x-small"></lightning-icon>
+                                </div>
+                                <div class="typing-indicator">
+                                    <span class="dot"></span>
+                                    <span class="dot"></span>
+                                    <span class="dot"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+                </template>
+
+                <!-- Chat Input -->
+                <div class="chat-input-container">
+                    <input
+                        type="text"
+                        class="chat-input"
+                        placeholder="Type your message..."
+                        value={inputMessage}
+                        onkeyup={handleKeyUp}
+                        oninput={handleInputChange}
+                        disabled={isInputDisabled}
+                    />
+                    <button class="send-button-chat" onclick={handleSendMessage} disabled={isSendDisabled} style={sendButtonStyle}>
+                        <svg class="send-icon" viewBox="0 0 52 52" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M2.1 47.4c-.6 2.1 1.4 3.9 3.4 3.1L49.7 28c1.7-.7 1.7-3.1 0-3.8L5.5 1.5C3.5.7 1.5 2.5 2.1 4.6l5.9 18.2c.2.7.8 1.2 1.5 1.3l21.3 2.1c.8.1.8 1.3 0 1.4L9.5 29.7c-.7.1-1.3.6-1.5 1.3L2.1 47.4z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </template>
+
+        <!-- Loading State -->
+        <template lwc:if={isLoading}>
+            <div class="loading-overlay">
+                <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
+                <p>Connecting to {chatHeaderTitle}...</p>
+            </div>
+        </template>
+
+        <!-- Error State -->
+        <template lwc:if={hasError}>
+            <div class="error-container">
+                <lightning-icon icon-name="utility:error" size="large" variant="error"></lightning-icon>
+                <p>{errorMessage}</p>
+                <lightning-button label="Try Again" onclick={handleRetry}></lightning-button>
+            </div>
+        </template>
+        </div>
+    </div>
+</template>

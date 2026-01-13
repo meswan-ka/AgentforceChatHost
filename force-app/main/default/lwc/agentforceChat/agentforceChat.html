@@ -1,0 +1,39 @@
+<template>
+    <!-- Only render the container wrapper when inline mode is expected -->
+    <template lwc:if={showInlineContainer}>
+        <div class={wrapperClass} style={wrapperStyle}>
+            <!-- Chat Container for Embedded Service Inline Mode -->
+            <div id={containerId} class="chat-container">
+                <!-- Loading State -->
+                <template lwc:if={isLoading}>
+                    <div class="loading-state">
+                        <lightning-spinner alternative-text="Loading chat" size="medium"></lightning-spinner>
+                        <p class="loading-text">Loading chat...</p>
+                    </div>
+                </template>
+
+                <!-- Error State -->
+                <template lwc:if={hasError}>
+                    <div class="error-state">
+                        <lightning-icon icon-name="utility:error" size="large" variant="error"></lightning-icon>
+                        <p class="error-text">{errorMessage}</p>
+                        <lightning-button label="Try Again" onclick={handleRetry}></lightning-button>
+                    </div>
+                </template>
+
+                <!-- Configuration Required State -->
+                <template lwc:if={showConfigRequired}>
+                    <div class="config-required-state">
+                        <lightning-icon icon-name="utility:settings" size="large"></lightning-icon>
+                        <p class="config-text">Please configure the Embedded Service Deployment in Experience Builder.</p>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </template>
+
+    <!-- Hidden container for floating mode - needed for bootstrap but takes no space -->
+    <template lwc:if={showFloatingContainer}>
+        <div id={containerId} class="chat-container-hidden"></div>
+    </template>
+</template>

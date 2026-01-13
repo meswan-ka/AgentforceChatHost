@@ -1,0 +1,308 @@
+<template>
+    <div class="cpe-container">
+        <!-- ==================== SETUP SECTION ==================== -->
+        <div class="section-card">
+            <div class="section-header" onclick={toggleSetup}>
+                <div class="section-title">
+                    <lightning-icon icon-name="utility:settings" size="x-small"></lightning-icon>
+                    <span>Setup (Required)</span>
+                </div>
+                <lightning-icon icon-name={setupIconName} size="x-small"></lightning-icon>
+            </div>
+            <template lwc:if={isSetupExpanded}>
+                <div class="section-body">
+                    <p class="section-intro">Copy these values from the Salesforce-generated code snippet (Setup &gt; Embedded Service Deployments &gt; Get Code):</p>
+
+                    <!-- REQUIRED: Org ID -->
+                    <lightning-input
+                        type="text"
+                        name="orgId"
+                        label="Org ID"
+                        value={orgId}
+                        placeholder="00Dg50000013C5n"
+                        onchange={handleOrgIdChange}
+                        required>
+                    </lightning-input>
+                    <p class="field-help">
+                        First parameter in init() - your 15-character Org ID.
+                    </p>
+
+                    <!-- REQUIRED: Deployment API Name -->
+                    <lightning-input
+                        type="text"
+                        name="deploymentDevName"
+                        label="Deployment API Name"
+                        value={deploymentDevName}
+                        placeholder="AgentLake"
+                        onchange={handleDeploymentDevNameChange}
+                        class="field-spacing"
+                        required>
+                    </lightning-input>
+                    <p class="field-help">
+                        Second parameter in init() - the deployment's API name.
+                    </p>
+
+                    <!-- REQUIRED: Site Endpoint URL -->
+                    <lightning-input
+                        type="url"
+                        name="siteEndpointUrl"
+                        label="Site Endpoint URL"
+                        value={siteEndpointUrl}
+                        placeholder="https://yoursite.my.site.com/ESWAgentLake123"
+                        onchange={handleSiteEndpointUrlChange}
+                        class="field-spacing"
+                        required>
+                    </lightning-input>
+                    <p class="field-help">
+                        Third parameter in init() - the full URL with endpoint path.
+                    </p>
+
+                    <!-- REQUIRED: SCRT URL -->
+                    <lightning-input
+                        type="url"
+                        name="scrtUrl"
+                        label="SCRT URL"
+                        value={scrtUrl}
+                        placeholder="https://yourorg.my.salesforce-scrt.com"
+                        onchange={handleScrtUrlChange}
+                        class="field-spacing"
+                        required>
+                    </lightning-input>
+                    <p class="field-help">
+                        Fourth parameter (scrt2URL) - the SCRT endpoint URL.
+                    </p>
+                </div>
+            </template>
+        </div>
+
+        <!-- ==================== DISPLAY SECTION ==================== -->
+        <div class="section-card">
+            <div class="section-header" onclick={toggleDisplay}>
+                <div class="section-title">
+                    <lightning-icon icon-name="utility:layout" size="x-small"></lightning-icon>
+                    <span>Display</span>
+                </div>
+                <lightning-icon icon-name={displayIconName} size="x-small"></lightning-icon>
+            </div>
+            <template lwc:if={isDisplayExpanded}>
+                <div class="section-body">
+                    <lightning-combobox
+                        name="displayMode"
+                        label="Display Mode"
+                        value={displayMode}
+                        options={displayModeOptions}
+                        onchange={handleDisplayModeChange}>
+                    </lightning-combobox>
+                    <p class="field-help">
+                        Floating Button shows the standard chat button. Inline embeds the chat in a container.
+                    </p>
+
+                    <template lwc:if={showInlineOptions}>
+                        <div class="nested-controls">
+                            <lightning-input
+                                type="number"
+                                name="inlineContainerHeight"
+                                label="Container Height (px)"
+                                value={inlineContainerHeight}
+                                min="300"
+                                max="800"
+                                onchange={handleHeightChange}
+                                class="field-spacing">
+                            </lightning-input>
+
+                            <lightning-input
+                                type="number"
+                                name="inlineContainerWidth"
+                                label="Container Width (px)"
+                                value={inlineContainerWidth}
+                                min="300"
+                                max="600"
+                                onchange={handleWidthChange}
+                                class="field-spacing">
+                            </lightning-input>
+                        </div>
+                    </template>
+                </div>
+            </template>
+        </div>
+
+        <!-- ==================== BRANDING SECTION ==================== -->
+        <div class="section-card">
+            <div class="section-header" onclick={toggleBranding}>
+                <div class="section-title">
+                    <lightning-icon icon-name="utility:palette" size="x-small"></lightning-icon>
+                    <span>Branding</span>
+                </div>
+                <lightning-icon icon-name={brandingIconName} size="x-small"></lightning-icon>
+            </div>
+            <template lwc:if={isBrandingExpanded}>
+                <div class="section-body">
+                    <!-- Header Background Color -->
+                    <div class="color-field field-spacing">
+                        <label class="color-label">Header Background</label>
+                        <div class="color-picker-row">
+                            <input
+                                type="color"
+                                value={headerBackgroundColor}
+                                onchange={handleHeaderBackgroundColorChange}
+                                class="color-swatch">
+                            <lightning-input
+                                type="text"
+                                value={headerBackgroundColor}
+                                onchange={handleHeaderBackgroundColorChange}
+                                class="color-hex-input"
+                                variant="label-hidden">
+                            </lightning-input>
+                        </div>
+                    </div>
+
+                    <!-- Brand Color -->
+                    <div class="color-field field-spacing">
+                        <label class="color-label">Brand Color</label>
+                        <div class="color-picker-row">
+                            <input
+                                type="color"
+                                value={brandColor}
+                                onchange={handleBrandColorChange}
+                                class="color-swatch">
+                            <lightning-input
+                                type="text"
+                                value={brandColor}
+                                onchange={handleBrandColorChange}
+                                class="color-hex-input"
+                                variant="label-hidden">
+                            </lightning-input>
+                        </div>
+                        <p class="field-help">Primary accent color for buttons and links.</p>
+                    </div>
+
+                    <!-- Contrast Color -->
+                    <div class="color-field field-spacing">
+                        <label class="color-label">Contrast Color</label>
+                        <div class="color-picker-row">
+                            <input
+                                type="color"
+                                value={contrastColor}
+                                onchange={handleContrastColorChange}
+                                class="color-swatch">
+                            <lightning-input
+                                type="text"
+                                value={contrastColor}
+                                onchange={handleContrastColorChange}
+                                class="color-hex-input"
+                                variant="label-hidden">
+                            </lightning-input>
+                        </div>
+                        <p class="field-help">Text color on colored backgrounds.</p>
+                    </div>
+
+                    <!-- Font Family -->
+                    <lightning-combobox
+                        name="fontFamily"
+                        label="Font Family"
+                        value={fontFamily}
+                        options={fontFamilyOptions}
+                        onchange={handleFontFamilyChange}
+                        class="field-spacing">
+                    </lightning-combobox>
+                </div>
+            </template>
+        </div>
+
+        <!-- ==================== LABELS SECTION ==================== -->
+        <div class="section-card">
+            <div class="section-header" onclick={toggleLabels}>
+                <div class="section-title">
+                    <lightning-icon icon-name="utility:text" size="x-small"></lightning-icon>
+                    <span>Labels</span>
+                </div>
+                <lightning-icon icon-name={labelsIconName} size="x-small"></lightning-icon>
+            </div>
+            <template lwc:if={isLabelsExpanded}>
+                <div class="section-body">
+                    <lightning-input
+                        type="text"
+                        name="chatButtonLabel"
+                        label="Chat Button Label"
+                        value={chatButtonLabel}
+                        placeholder="Chat with an Agent"
+                        onchange={handleChatButtonLabelChange}>
+                    </lightning-input>
+                    <p class="field-help">Text displayed on the floating chat button.</p>
+
+                    <lightning-input
+                        type="text"
+                        name="chatHeaderTitle"
+                        label="Chat Header Title"
+                        value={chatHeaderTitle}
+                        placeholder="Agentforce"
+                        onchange={handleChatHeaderTitleChange}
+                        class="field-spacing">
+                    </lightning-input>
+                    <p class="field-help">Title displayed in the chat window header.</p>
+
+                    <lightning-input
+                        type="url"
+                        name="prechatBackgroundImgUrl"
+                        label="Avatar Image URL (Optional)"
+                        value={prechatBackgroundImgUrl}
+                        placeholder="https://..."
+                        onchange={handlePrechatBackgroundImgUrlChange}
+                        class="field-spacing">
+                    </lightning-input>
+                    <p class="field-help">URL for the agent avatar image.</p>
+                </div>
+            </template>
+        </div>
+
+        <!-- ==================== FEATURES SECTION ==================== -->
+        <div class="section-card">
+            <div class="section-header" onclick={toggleFeatures}>
+                <div class="section-title">
+                    <lightning-icon icon-name="utility:toggle_on" size="x-small"></lightning-icon>
+                    <span>Features</span>
+                </div>
+                <lightning-icon icon-name={featuresIconName} size="x-small"></lightning-icon>
+            </div>
+            <template lwc:if={isFeaturesExpanded}>
+                <div class="section-body">
+                    <div class="toggle-field">
+                        <lightning-input
+                            type="toggle"
+                            label="Enable Pre-Chat Form"
+                            checked={enablePrechat}
+                            onchange={handlePrechatToggle}
+                            message-toggle-active=""
+                            message-toggle-inactive="">
+                        </lightning-input>
+                        <p class="field-help">Show a form to collect information before starting the chat.</p>
+                    </div>
+
+                    <div class="toggle-field field-spacing">
+                        <lightning-input
+                            type="toggle"
+                            label="Enable Offline Support"
+                            checked={enableOfflineSupport}
+                            onchange={handleOfflineSupportToggle}
+                            message-toggle-active=""
+                            message-toggle-inactive="">
+                        </lightning-input>
+                        <p class="field-help">Allow users to leave messages when agents are offline.</p>
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        <!-- Footer Branding -->
+        <div class="cpe-footer">
+            <div class="footer-brand">
+                <span class="brand-ka">Kelley</span>
+                <span class="brand-ka-austin"><span class="brand-diamond"></span>Austin</span>
+                <span class="brand-separator"></span>
+                <span class="brand-nowpart">NOW PART OF</span>
+                <span class="brand-perficient"><span class="brand-p">P</span>ERFICIENT</span>
+            </div>
+            <div class="footer-version">Version: <span class="version-number">26.W</span></div>
+        </div>
+    </div>
+</template>
